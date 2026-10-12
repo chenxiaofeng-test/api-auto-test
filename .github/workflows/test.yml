@@ -1,0 +1,50 @@
+name: 接口自动化测试
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 拉取代码
+      uses: actions/checkout@v4
+
+    - name: 配置 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests allure-pytest
+
+    - name: 启动被测服务
+      run: |
+        python myapi.py &
+        sleep 5
+
+    - name: 执行测试
+      run: |
+        pytest -v --alluredir=./allure-results --clean-alluredir
+
+    - name: 生成 Allure 报告
+      if: always()
+      run: |
+        pip install allure-python-commons
+        apt-get update && apt-get install -y default-jre
+        curl -o allure.tgz -Ls https://github.com/allure-framework/allure2/releases/download/2.24.0/allure-2.24.0.tgz
+        tar -zxvf allure.tgz
+        ./allure-2.24.0/bin/allure generate ./allure-results -o ./allure-report --clean
+
+    - name: 上传测试报告
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: allure-report
+        path: ./allure-report
